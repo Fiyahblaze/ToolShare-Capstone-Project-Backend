@@ -1,12 +1,11 @@
 {
   "name": "toolshare-server",
   "version": "1.0.0",
-  "description": "ToolShare backend server with Stripe integration",
+  "description": "ToolShare MERN capstone backend API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -20,13 +19,6 @@
   "devDependencies": {
     "nodemon": "^3.1.14"
   },
-  "keywords": [
-    "stripe",
-    "payments",
-    "toolshare",
-    "rental"
-  ],
-  "author": "ToolShare Team",
   "license": "MIT",
   "type": "commonjs"
 }
