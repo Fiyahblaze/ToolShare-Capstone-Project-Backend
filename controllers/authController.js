@@ -30,3 +30,32 @@ async function register(req, res) {
         message: "Name, email, and password are required",
       });
     }
+
+    const user = await User.create({
+      name,
+      email: normalizedEmail,
+      password,
+    });
+
+    res.status(201).json({
+      message: "Account created successfully",
+      token: createToken(user),
+      user: userDetails(user),
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ message: "Email is already registered" });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        message: Object.values(error.errors)
+          .map((item) => item.message)
+          .join(", "),
+      });
+    }
+
+    console.error("Registration failed:", error.message);
+    res.status(500).json({ message: "Unable to create account" });
+  }
+}
