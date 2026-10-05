@@ -1,0 +1,32 @@
+{
+  "name": "toolshare-server",
+  "version": "1.0.0",
+  "description": "ToolShare backend server with Stripe integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.0",
+    "morgan": "^1.12.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "keywords": [
+    "stripe",
+    "payments",
+    "toolshare",
+    "rental"
+  ],
+  "author": "ToolShare Team",
+  "license": "MIT",
+  "type": "commonjs"
+}
