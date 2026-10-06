@@ -5,6 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
 const connectDB = require("./config/database");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,12 +26,35 @@ app.get("/health", (req, res) => {
   });
 });
 
+app.use("/api/auth", authRoutes);
+
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
 });
 
+app.use((error, req, res, next) => {
+  if (error.type === "entity.parse.failed") {
+    return res.status(400).json({ message: "Invalid JSON request body" });
+  }
+
+  if (error.type === "entity.too.large") {
+    return res.status(413).json({ message: "Request body is too large" });
+  }
+
+  console.error("Request failed:", error.message);
+  res.status(500).json({ message: "Something went wrong" });
+});
+
 async function startServer() {
   try {
+    if (
+      !process.env.JWT_SECRET ||
+      process.env.JWT_SECRET.length < 32 ||
+      process.env.JWT_SECRET === "replace_with_a_random_secret"
+    ) {
+      throw new Error("Set JWT_SECRET to a generated secret in .env");
+    }
+
     await connectDB();
 
     app.listen(PORT, () => {
