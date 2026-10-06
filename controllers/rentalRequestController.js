@@ -64,3 +64,63 @@ function parseRentalDates(startDate, endDate) {
 
   return { startDate: start, endDate: end };
 }
+
+// Requests submitted by the logged-in borrower
+async function getOutgoingRequests(req, res) {
+  try {
+    const requests = await RentalRequest.find({
+      borrower: req.user._id,
+    })
+      .populate("tool", "name imageUrl dailyRate location")
+      .populate("owner", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ requests });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
+// Requests received by the logged-in tool owner
+async function getIncomingRequests(req, res) {
+  try {
+    const requests = await RentalRequest.find({
+      owner: req.user._id,
+    })
+      .populate("tool", "name imageUrl dailyRate location")
+      .populate("borrower", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ requests });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
+// View one request if the user is its owner or borrower
+async function getRequestById(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  try {
+    const request = await RentalRequest.findOne({
+      _id: req.params.id,
+      $or: [
+        { owner: req.user._id },
+        { borrower: req.user._id },
+      ],
+    })
+      .populate("tool", "name imageUrl dailyRate location")
+      .populate("owner", "name")
+      .populate("borrower", "name");
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Rental request not found",
+      });
+    }
+
+    return res.status(200).json({ request });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
