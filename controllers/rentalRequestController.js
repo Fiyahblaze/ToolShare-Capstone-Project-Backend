@@ -207,3 +207,119 @@ async function createRequest(req, res) {
     return handleError(res, error);
   }
 }
+async function updateRequest(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  const body = req.body || {};
+
+  if (
+    body.startDate === undefined &&
+    body.endDate === undefined &&
+    body.message === undefined
+  ) {
+    return res.status(400).json({
+      message: "Provide rental dates or a message to update",
+    });
+  }
+
+  if (body.message !== undefined && typeof body.message !== "string") {
+    return res.status(400).json({ message: "Message must be text" });
+  }
+
+  try {
+    const request = await RentalRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Rental request not found",
+      });
+    }
+
+    if (!request.borrower.equals(req.user._id)) {
+      return res.status(403).json({
+        message: "You can only edit your own rental requests",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(409).json({
+        message: "Only pending requests can be edited",
+      });
+    }
+
+    let dates;
+
+    try {
+      dates = parseRentalDates(
+        body.startDate ?? request.startDate.toISOString().slice(0, 10),
+        body.endDate ?? request.endDate.toISOString().slice(0, 10)
+      );
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    if (dates.startDate < today) {
+      return res.status(400).json({
+        message: "Start date cannot be in the past",
+      });
+    }
+
+    const tool = await Tool.findById(request.tool);
+
+    if (!tool || !tool.available) {
+      return res.status(409).json({
+        message: "This tool is no longer available",
+      });
+    }
+
+    const overlap = await RentalRequest.findOne({
+      _id: { $ne: request._id },
+      tool: request.tool,
+      startDate: { $lte: dates.endDate },
+      endDate: { $gte: dates.startDate },
+      $or: [
+        { status: "approved" },
+        { status: "pending", borrower: req.user._id },
+      ],
+    });
+
+    if (overlap) {
+      return res.status(409).json({
+        message: "These dates overlap an existing rental request",
+      });
+    }
+
+    const changes = { ...dates };
+
+    if (body.message !== undefined) {
+      changes.message = body.message;
+    }
+
+    const updatedRequest = await RentalRequest.findOneAndUpdate(
+      {
+        _id: request._id,
+        borrower: req.user._id,
+        status: "pending",
+        updatedAt: request.updatedAt,
+      },
+      { $set: changes },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(409).json({
+        message: "Request changed. Refresh and try again",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Rental request updated successfully",
+      request: updatedRequest,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
