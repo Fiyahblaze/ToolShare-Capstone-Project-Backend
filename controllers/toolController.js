@@ -52,3 +52,47 @@ function validToolId(req, res) {
 
   return true;
 }
+// Read all tool listings
+async function getTools(req, res) {
+  try {
+    const tools = await Tool.find()
+      .populate("owner", "name")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ tools });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
+// Read one tool listing
+async function getToolById(req, res) {
+  if (!validToolId(req, res)) return;
+
+  try {
+    const tool = await Tool.findById(req.params.id)
+      .populate("owner", "name");
+
+    if (!tool) {
+      return res.status(404).json({
+        message: "Tool not found",
+      });
+    }
+
+    return res.status(200).json({ tool });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
+
+// Read the logged-in user's listings
+async function getMyTools(req, res) {
+  try {
+    const tools = await Tool.find({ owner: req.user._id })
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ tools });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
