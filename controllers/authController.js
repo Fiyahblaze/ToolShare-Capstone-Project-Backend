@@ -31,20 +31,34 @@ async function register(req, res) {
       });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "Email is already registered",
+      });
+    }
+
     const user = await User.create({
       name,
       email: normalizedEmail,
       password,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Account created successfully",
       token: createToken(user),
       user: userDetails(user),
     });
   } catch (error) {
     if (error.code === 11000) {
-      return res.status(409).json({ message: "Email is already registered" });
+      return res.status(409).json({
+        message: "Email is already registered",
+      });
     }
 
     if (error.name === "ValidationError") {
@@ -56,7 +70,9 @@ async function register(req, res) {
     }
 
     console.error("Registration failed:", error.message);
-    res.status(500).json({ message: "Unable to create account" });
+    return res.status(500).json({
+      message: "Unable to create account",
+    });
   }
 }
 
@@ -71,7 +87,9 @@ async function login(req, res) {
     }
 
     if (Buffer.byteLength(password, "utf8") > 72) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
     }
 
     const user = await User.findOne({
@@ -79,22 +97,26 @@ async function login(req, res) {
     }).select("+password");
 
     if (!user || !(await user.comparePassword(password))) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
     }
 
-    res.json({
+    return res.json({
       message: "Logged in successfully",
       token: createToken(user),
       user: userDetails(user),
     });
   } catch (error) {
     console.error("Login failed:", error.message);
-    res.status(500).json({ message: "Unable to log in" });
+    return res.status(500).json({
+      message: "Unable to log in",
+    });
   }
 }
 
 function getMe(req, res) {
-  res.json({ user: userDetails(req.user) });
+  return res.json({ user: userDetails(req.user) });
 }
 
 module.exports = { register, login, getMe };
