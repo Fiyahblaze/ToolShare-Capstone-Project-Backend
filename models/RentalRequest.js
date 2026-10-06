@@ -23,6 +23,32 @@ const rentalRequestSchema = new mongoose.Schema(
       index: true,
     },
 
+    startDate: {
+      type: Date,
+      required: [true, "Start date is required"],
+    },
+
+    endDate: {
+      type: Date,
+      required: [true, "End date is required"],
+      validate: {
+        validator(value) {
+          return (
+            this.startDate instanceof Date &&
+            value >= this.startDate
+          );
+        },
+        message: "End date must be on or after the start date",
+      },
+    },
+
+    message: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Message cannot exceed 500 characters"],
+      default: "",
+    },
+
     status: {
       type: String,
       enum: [
@@ -38,5 +64,18 @@ const rentalRequestSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+rentalRequestSchema.pre("validate", function () {
+  if (
+    this.owner &&
+    this.borrower &&
+    this.owner.equals(this.borrower)
+  ) {
+    this.invalidate(
+      "borrower",
+      "You cannot request your own tool"
+    );
+  }
+});
 
 module.exports = mongoose.model("RentalRequest", rentalRequestSchema);
