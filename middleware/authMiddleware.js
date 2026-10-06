@@ -10,7 +10,7 @@ async function protect(req, res, next) {
     return res.status(401).json({ message: "Login required" });
   }
 
-  let decoded;
+   let decoded;
 
   try {
     decoded = jwt.verify(match[1], process.env.JWT_SECRET, {
