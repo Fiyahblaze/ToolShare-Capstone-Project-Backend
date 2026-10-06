@@ -323,3 +323,48 @@ async function updateRequest(req, res) {
     return handleError(res, error);
   }
 }
+
+async function deleteRequest(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  try {
+    const request = await RentalRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Rental request not found",
+      });
+    }
+
+    if (!request.borrower.equals(req.user._id)) {
+      return res.status(403).json({
+        message: "You can only delete your own rental requests",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(409).json({
+        message: "Only pending requests can be deleted",
+      });
+    }
+
+    const deletedRequest = await RentalRequest.findOneAndDelete({
+      _id: request._id,
+      borrower: req.user._id,
+      status: "pending",
+      updatedAt: request.updatedAt,
+    });
+
+    if (!deletedRequest) {
+      return res.status(409).json({
+        message: "Request changed. Refresh and try again",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Rental request deleted successfully",
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
