@@ -59,3 +59,42 @@ async function register(req, res) {
     res.status(500).json({ message: "Unable to create account" });
   }
 }
+
+async function login(req, res) {
+  try {
+    const { email, password } = req.body || {};
+
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({
+        message: "Email and password are required",
+      });
+    }
+
+    if (Buffer.byteLength(password, "utf8") > 72) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    }).select("+password");
+
+    if (!user || !(await user.comparePassword(password))) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    res.json({
+      message: "Logged in successfully",
+      token: createToken(user),
+      user: userDetails(user),
+    });
+  } catch (error) {
+    console.error("Login failed:", error.message);
+    res.status(500).json({ message: "Unable to log in" });
+  }
+}
+
+function getMe(req, res) {
+  res.json({ user: userDetails(req.user) });
+}
+
+module.exports = { register, login, getMe };
