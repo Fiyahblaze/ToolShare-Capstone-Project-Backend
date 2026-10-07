@@ -7,6 +7,7 @@ const morgan = require("morgan");
 const connectDB = require("./config/database");
 const authRoutes = require("./routes/authRoutes");
 const toolRoutes = require("./routes/toolRoutes");
+const rentalRequestRoutes = require("./routes/rentalRequestRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,6 +30,7 @@ app.get("/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/tools", toolRoutes);
+app.use("/api/requests", rentalRequestRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
