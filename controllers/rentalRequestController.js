@@ -418,3 +418,86 @@ async function declineRequest(req, res) {
     return handleError(res, error);
   }
 }
+
+function requestError(statusCode, message) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  throw error;
+}
+
+async function approveRequest(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  try {
+    const approvedRequest = await mongoose.connection.transaction(
+      async (session) => {
+        const request = await RentalRequest.findById(req.params.id)
+          .session(session);
+
+        if (!request) {
+          requestError(404, "Rental request not found");
+        }
+
+        if (!request.owner.equals(req.user._id)) {
+          requestError(403, "Only the tool owner can approve this request");
+        }
+
+        if (request.status !== "pending") {
+          requestError(409, "Only pending requests can be approved");
+        }
+
+        const today = new Date();
+        today.setUTCHours(0, 0, 0, 0);
+
+        if (request.startDate < today) {
+          requestError(409, "This request's start date has already passed");
+        }
+
+        // Write to the tool so competing approvals must coordinate.
+        const tool = await Tool.findOneAndUpdate(
+          {
+            _id: request.tool,
+            owner: req.user._id,
+            available: true,
+          },
+          { $inc: { __v: 1 } },
+          { new: true, session }
+        );
+
+        if (!tool) {
+          requestError(409, "This tool is no longer available");
+        }
+
+        const overlap = await RentalRequest.findOne({
+          _id: { $ne: request._id },
+          tool: request.tool,
+          status: "approved",
+          startDate: { $lte: request.endDate },
+          endDate: { $gte: request.startDate },
+        }).session(session);
+
+        if (overlap) {
+          requestError(409, "This tool is already booked for those dates");
+        }
+
+        request.status = "approved";
+        await request.save({ session });
+
+        return request;
+      }
+    );
+
+    return res.status(200).json({
+      message: "Rental request approved",
+      request: approvedRequest,
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+      });
+    }
+
+    return handleError(res, error);
+  }
+}
