@@ -125,4 +125,10 @@ I also checked ownership restrictions, overlapping rental dates, invalid IDs, mi
 - [Backend repository](https://github.com/Fiyahblaze/ToolShare-Capstone-Project-Backend)
 - [Frontend repository](https://github.com/Fiyahblaze/ToolShare-Capstone-Project-Frontend)
 
-Deployment links will be added after deployment.
+## Live Backend
+
+- [Backend API](https://toolshare-capstone-project-backend.onrender.com)
+- [Health Check](https://toolshare-capstone-project-backend.onrender.com/health)
+- [Tool Listings](https://toolshare-capstone-project-backend.onrender.com/api/tools)
+
+The frontend deployment link will be added once it is ready.
