@@ -154,59 +154,77 @@ async function createRequest(req, res) {
   }
 
   try {
-    const tool = await Tool.findById(toolId);
+    const request = await mongoose.connection.transaction(
+      async (session) => {
+        const tool = await Tool.findOneAndUpdate(
+          { _id: toolId },
+          { $inc: { __v: 1 } },
+          { returnDocument: "after", session }
+        );
 
-    if (!tool) {
-      return res.status(404).json({ message: "Tool not found" });
-    }
+        if (!tool) {
+          requestError(404, "Tool not found");
+        }
 
-    if (tool.owner.equals(req.user._id)) {
-      return res.status(400).json({
-        message: "You cannot request your own tool",
-      });
-    }
+        if (tool.owner.equals(req.user._id)) {
+          requestError(400, "You cannot request your own tool");
+        }
 
-    if (!tool.available) {
-      return res.status(409).json({
-        message: "This tool is currently unavailable",
-      });
-    }
+        if (!tool.available) {
+          requestError(409, "This tool is currently unavailable");
+        }
 
-    const overlappingRequest = await RentalRequest.findOne({
-      tool: tool._id,
-      startDate: { $lte: dates.endDate },
-      endDate: { $gte: dates.startDate },
-      $or: [
-        { status: "approved" },
-        { status: "pending", borrower: req.user._id },
-      ],
-    });
+        const overlap = await RentalRequest.findOne({
+          tool: tool._id,
+          startDate: { $lte: dates.endDate },
+          endDate: { $gte: dates.startDate },
+          $or: [
+            { status: "approved" },
+            { status: "pending", borrower: req.user._id },
+          ],
+        }).session(session);
 
-    if (overlappingRequest) {
-      return res.status(409).json({
-        message:
-          "These dates overlap an approved rental or your pending request",
-      });
-    }
+        if (overlap) {
+          requestError(
+            409,
+            "These dates overlap an approved rental or your pending request"
+          );
+        }
 
-    const request = await RentalRequest.create({
-      tool: tool._id,
-      borrower: req.user._id,
-      owner: tool.owner,
-      startDate: dates.startDate,
-      endDate: dates.endDate,
-      message: message || "",
-      status: "pending",
-    });
+        const [createdRequest] = await RentalRequest.create(
+          [
+            {
+              tool: tool._id,
+              borrower: req.user._id,
+              owner: tool.owner,
+              startDate: dates.startDate,
+              endDate: dates.endDate,
+              message: message || "",
+              status: "pending",
+            },
+          ],
+          { session }
+        );
+
+        return createdRequest;
+      }
+    );
 
     return res.status(201).json({
       message: "Rental request submitted successfully",
       request,
     });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+      });
+    }
+
     return handleError(res, error);
   }
 }
+
 async function updateRequest(req, res) {
   if (!validRequestId(req, res)) return;
 
