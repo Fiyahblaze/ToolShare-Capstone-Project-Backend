@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Tool = require("../models/Tool");
+const RentalRequest = require("../models/RentalRequest");
 
 const editableFields = [
   "name",
@@ -157,28 +158,59 @@ async function deleteTool(req, res) {
   if (!validToolId(req, res)) return;
 
   try {
-    const tool = await Tool.findById(req.params.id);
+    await mongoose.connection.transaction(async (session) => {
+      const tool = await Tool.findById(req.params.id)
+        .session(session);
 
-    if (!tool) {
-      return res.status(404).json({ message: "Tool not found" });
-    }
+      if (!tool) {
+        const error = new Error("Tool not found");
+        error.statusCode = 404;
+        throw error;
+      }
 
-    if (!tool.owner.equals(req.user._id)) {
-      return res.status(403).json({
-        message: "You can only delete your own tool listings",
-      });
-    }
+      if (!tool.owner.equals(req.user._id)) {
+        const error = new Error(
+          "You can only delete your own tool listings"
+        );
+        error.statusCode = 403;
+        throw error;
+      }
 
-    await tool.deleteOne();
+      // Coordinate deletion with other transactions using this tool.
+      await Tool.updateOne(
+        { _id: tool._id },
+        { $inc: { __v: 1 } },
+        { session }
+      );
+
+      const hasRequests = await RentalRequest.exists({
+        tool: tool._id,
+      }).session(session);
+
+      if (hasRequests) {
+        const error = new Error(
+          "This tool has rental request history. Mark it unavailable instead"
+        );
+        error.statusCode = 409;
+        throw error;
+      }
+
+      await Tool.deleteOne({ _id: tool._id }, { session });
+    });
 
     return res.status(200).json({
       message: "Tool deleted successfully",
     });
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+      });
+    }
+
     return handleError(res, error);
   }
 }
-
 module.exports = {
   getTools,
   getToolById,
