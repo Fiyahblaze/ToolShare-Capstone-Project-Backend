@@ -551,3 +551,62 @@ async function cancelRequest(req, res) {
     return handleError(res, error);
   }
 }
+
+async function returnRequest(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  try {
+    const request = await RentalRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Rental request not found",
+      });
+    }
+
+    if (!request.owner.equals(req.user._id)) {
+      return res.status(403).json({
+        message: "Only the tool owner can confirm a return",
+      });
+    }
+
+    if (request.status !== "approved") {
+      return res.status(409).json({
+        message: "Only approved rentals can be marked as returned",
+      });
+    }
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    if (request.startDate > today) {
+      return res.status(409).json({
+        message: "A rental cannot be returned before its start date",
+      });
+    }
+
+    const updatedRequest = await RentalRequest.findOneAndUpdate(
+      {
+        _id: request._id,
+        owner: req.user._id,
+        status: "approved",
+        updatedAt: request.updatedAt,
+      },
+      { $set: { status: "returned" } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(409).json({
+        message: "Request changed. Refresh and try again",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Tool return confirmed",
+      request: updatedRequest,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
