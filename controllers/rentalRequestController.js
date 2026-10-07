@@ -368,3 +368,53 @@ async function deleteRequest(req, res) {
     return handleError(res, error);
   }
 }
+
+async function declineRequest(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  try {
+    const request = await RentalRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Rental request not found",
+      });
+    }
+
+    if (!request.owner.equals(req.user._id)) {
+      return res.status(403).json({
+        message: "Only the tool owner can decline this request",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(409).json({
+        message: "Only pending requests can be declined",
+      });
+    }
+
+    const updatedRequest = await RentalRequest.findOneAndUpdate(
+      {
+        _id: request._id,
+        owner: req.user._id,
+        status: "pending",
+        updatedAt: request.updatedAt,
+      },
+      { $set: { status: "declined" } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(409).json({
+        message: "Request changed. Refresh and try again",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Rental request declined",
+      request: updatedRequest,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
