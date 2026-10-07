@@ -28,20 +28,26 @@ const rentalRequestSchema = new mongoose.Schema(
       required: [true, "Start date is required"],
     },
 
-    endDate: {
+       endDate: {
       type: Date,
       required: [true, "End date is required"],
       validate: {
         validator(value) {
+          const startDate =
+            this instanceof mongoose.Query
+              ? this.get("startDate")
+              : this.startDate;
+
           return (
-            this.startDate instanceof Date &&
-            value >= this.startDate
+            startDate instanceof Date &&
+            !Number.isNaN(startDate.getTime()) &&
+            value >= startDate
           );
         },
         message: "End date must be on or after the start date",
       },
     },
-
+    
     message: {
       type: String,
       trim: true,
