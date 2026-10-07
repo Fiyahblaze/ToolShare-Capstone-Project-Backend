@@ -610,3 +610,16 @@ async function returnRequest(req, res) {
     return handleError(res, error);
   }
 }
+
+module.exports = {
+  getOutgoingRequests,
+  getIncomingRequests,
+  getRequestById,
+  createRequest,
+  updateRequest,
+  deleteRequest,
+  declineRequest,
+  approveRequest,
+  cancelRequest,
+  returnRequest,
+};
