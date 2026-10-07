@@ -306,7 +306,7 @@ async function updateRequest(req, res) {
         updatedAt: request.updatedAt,
       },
       { $set: changes },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedRequest) {
@@ -400,10 +400,10 @@ async function declineRequest(req, res) {
         status: "pending",
         updatedAt: request.updatedAt,
       },
-      { $set: { status: "declined" } },
-      { new: true, runValidators: true }
+            { $set: { status: "declined" } },
+      { returnDocument: "after", runValidators: true }
     );
-
+    
     if (!updatedRequest) {
       return res.status(409).json({
         message: "Request changed. Refresh and try again",
@@ -461,7 +461,7 @@ async function approveRequest(req, res) {
             available: true,
           },
           { $inc: { __v: 1 } },
-          { new: true, session }
+         { returnDocument: "after", session }
         );
 
         if (!tool) {
@@ -534,7 +534,7 @@ async function cancelRequest(req, res) {
         updatedAt: request.updatedAt,
       },
       { $set: { status: "cancelled" } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedRequest) {
@@ -593,7 +593,7 @@ async function returnRequest(req, res) {
         updatedAt: request.updatedAt,
       },
       { $set: { status: "returned" } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!updatedRequest) {
