@@ -501,3 +501,53 @@ async function approveRequest(req, res) {
     return handleError(res, error);
   }
 }
+
+async function cancelRequest(req, res) {
+  if (!validRequestId(req, res)) return;
+
+  try {
+    const request = await RentalRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Rental request not found",
+      });
+    }
+
+    if (!request.borrower.equals(req.user._id)) {
+      return res.status(403).json({
+        message: "You can only cancel your own rental requests",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(409).json({
+        message: "Only pending requests can be cancelled",
+      });
+    }
+
+    const updatedRequest = await RentalRequest.findOneAndUpdate(
+      {
+        _id: request._id,
+        borrower: req.user._id,
+        status: "pending",
+        updatedAt: request.updatedAt,
+      },
+      { $set: { status: "cancelled" } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRequest) {
+      return res.status(409).json({
+        message: "Request changed. Refresh and try again",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Rental request cancelled",
+      request: updatedRequest,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+}
